@@ -10,7 +10,7 @@ paho-mqtt==1.6.1
 
 # Flask + Dash for the Web Dashboard
 flask==2.2.2
-dash==2.7.0
+dash==2.15.0
 dash-bootstrap-components==1.4.1
 
 # Email notifications
