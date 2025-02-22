@@ -9,7 +9,7 @@ sqlite3                   # Database (built-in with Python)
 paho-mqtt==1.6.1
 
 # Flask + Dash for the Web Dashboard
-flask==2.2.2
+flask==2.2.5
 dash==2.15.0
 dash-bootstrap-components==1.4.1
 
