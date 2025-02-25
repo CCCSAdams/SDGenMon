@@ -14,35 +14,40 @@ import pandas as pd
 from collections import deque
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import os
+import sys
 
-# Load configuration
-def load_config(config_file):
-    with open(config_file, 'r') as file:
-        return json.load(file)
+# Import utility functions
+from utils import load_config, validate_config, connect_mqtt_with_retry, db_execute_with_retry
 
 # Initialize database
 def initialize_database(db_name="scada_alerts.db"):
-    conn = sqlite3.connect(db_name)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS alerts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            alert_message TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS alerts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                alert_message TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+        print(f"Database {db_name} initialized successfully")
+    except sqlite3.Error as e:
+        print(f"Error initializing database: {str(e)}")
+        return False
+    return True
 
 # Log alerts to the database
 def log_alert(alert_message, db_name="scada_alerts.db"):
-    conn = sqlite3.connect(db_name)
-    cursor = conn.cursor()
     timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-    cursor.execute("INSERT INTO alerts (timestamp, alert_message) VALUES (?, ?)", (timestamp, alert_message))
-    conn.commit()
-    conn.close()
-    print(f"ALERT LOGGED: {alert_message}")
+    query = "INSERT INTO alerts (timestamp, alert_message) VALUES (?, ?)"
+    if db_execute_with_retry(db_name, query, (timestamp, alert_message)):
+        print(f"ALERT LOGGED: {alert_message}")
+        return True
+    return False
 
 # Send email notifications
 def send_email_alert(alert_message, email_config):
@@ -67,8 +72,10 @@ def send_email_alert(alert_message, email_config):
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, receiver_email, message.as_string())
         print(f"EMAIL SENT: {alert_message}")
+        return True
     except Exception as e:
         print(f"EMAIL FAILED: {str(e)}")
+        return False
 
 # Track historical sensor data for drift detection
 sensor_history = {}
@@ -108,40 +115,102 @@ def check_drift_conditions(sensor_data, drift_conditions):
 
     return alerts
 
+# Store sensor data in database
+def store_sensor_data(sensor_data, db_name="sensor_data.db"):
+    try:
+        # Add timestamp
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        data_with_timestamp = {"timestamp": timestamp, **sensor_data}
+        
+        # Connect to database
+        conn = sqlite3.connect(db_name)
+        
+        # Create table if it doesn't exist
+        cursor = conn.cursor()
+        columns = ["timestamp TEXT"] + [f"{key} REAL" for key in sensor_data.keys()]
+        create_table_sql = f"CREATE TABLE IF NOT EXISTS sensor_data (id INTEGER PRIMARY KEY AUTOINCREMENT, {', '.join(columns)})"
+        cursor.execute(create_table_sql)
+        
+        # Insert data
+        columns = list(data_with_timestamp.keys())
+        placeholders = ", ".join(["?"] * len(columns))
+        values = [data_with_timestamp[col] for col in columns]
+        
+        insert_sql = f"INSERT INTO sensor_data ({', '.join(columns)}) VALUES ({placeholders})"
+        cursor.execute(insert_sql, values)
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error storing sensor data: {str(e)}")
+        return False
+
 # MQTT Callback Function
 def on_message(client, userdata, message):
-    payload = json.loads(message.payload.decode("utf-8"))
-    print(f"Received Data: {payload}")
-
-    # Check for drift conditions
-    drift_alerts = check_drift_conditions(payload, userdata["drift_conditions"])
-    for alert in drift_alerts:
-        log_alert(alert)
-        send_email_alert(alert, userdata["email_config"])
+    try:
+        payload = json.loads(message.payload.decode("utf-8"))
+        print(f"Received Data: {payload}")
+        
+        # Store sensor data in database
+        store_sensor_data(payload)
+        
+        # Check for drift conditions
+        drift_alerts = check_drift_conditions(payload, userdata["drift_conditions"])
+        for alert in drift_alerts:
+            log_alert(alert)
+            if userdata.get("email_config"):
+                send_email_alert(alert, userdata["email_config"])
+    except Exception as e:
+        print(f"Error processing message: {str(e)}")
 
 # Main real-time monitoring function
-def main(config_file):
-    config = load_config(config_file)
-    drift_conditions = config.get("failure_conditions", [])[1].get("drift_conditions", {})
-    mqtt_config = config.get("mqtt", {})
-    email_config = config.get("email", {})
+def main(config_file="config.json"):
+    try:
+        # Load configuration
+        config = load_config(config_file)
+        
+        # Validate configuration
+        if not validate_config(config):
+            print("Configuration validation failed. Exiting.")
+            return 1
+        
+        drift_conditions = {}
+        # Extract drift conditions from failure conditions
+        for failure in config.get("failure_conditions", []):
+            if "drift_conditions" in failure:
+                drift_conditions = failure["drift_conditions"]
+                break
+        
+        mqtt_config = config.get("mqtt", {})
+        email_config = config.get("email", {})
 
-    # Initialize database
-    initialize_database()
+        # Initialize database
+        if not initialize_database():
+            print("Failed to initialize database. Exiting.")
+            return 1
 
-    # MQTT Setup
-    client = mqtt.Client()
-    client.user_data_set({"drift_conditions": drift_conditions, "email_config": email_config})
-    client.on_message = on_message
+        # MQTT Setup
+        try:
+            client = connect_mqtt_with_retry(mqtt_config)
+            client.user_data_set({"drift_conditions": drift_conditions, "email_config": email_config})
+            client.on_message = on_message
 
-    client.connect(mqtt_config["broker"], mqtt_config["port"], 60)
-    client.subscribe(mqtt_config["topic"])
-    print(f"Subscribed to MQTT topic: {mqtt_config['topic']}")
+            client.subscribe(mqtt_config["topic"])
+            print(f"Subscribed to MQTT topic: {mqtt_config['topic']}")
 
-    # Start MQTT loop
-    client.loop_forever()
+            # Start MQTT loop
+            client.loop_forever()
+        except KeyboardInterrupt:
+            print("MQTT monitoring stopped by user")
+            return 0
+        except Exception as e:
+            print(f"MQTT error: {str(e)}")
+            return 1
+            
+    except Exception as e:
+        print(f"Error in main function: {str(e)}")
+        return 1
 
 if __name__ == "__main__":
-    config_path = "config.json"
-    main(config_path)
-
+    sys.exit(main())

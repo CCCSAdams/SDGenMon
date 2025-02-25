@@ -1,0 +1,61 @@
+version: '3'
+
+services:
+  mqtt:
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: unless-stopped
+
+  data-generator:
+    build: .
+    volumes:
+      - ./output_data:/app/output_data
+      - .:/app
+    env_file:
+      - .env
+    command: scada_data_generator.py
+    depends_on:
+      - mqtt
+    restart: unless-stopped
+
+  sensor-publisher:
+    build: .
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    command: sim_scada_sensor_publish.py
+    depends_on:
+      - mqtt
+    restart: unless-stopped
+
+  monitor:
+    build: .
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    command: scada_monitor.py
+    depends_on:
+      - mqtt
+    restart: unless-stopped
+
+  dashboard:
+    build: .
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    ports:
+      - "8050:8050"
+    command: scada_dashboard.py
+    depends_on:
+      - mqtt
+      - monitor
+    restart: unless-stopped

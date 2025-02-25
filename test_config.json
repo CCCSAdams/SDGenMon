@@ -1,0 +1,74 @@
+{
+  "sensors": [
+    {
+      "name": "test_temperature",
+      "base_value": 100,
+      "drift_rate": 0.01,
+      "spike_frequency": 0.01,
+      "spike_magnitude": 15,
+      "noise_std": 0.5,
+      "threshold": 120,
+      "missing_data_rate": 0.01
+    },
+    {
+      "name": "test_pressure",
+      "base_value": 10,
+      "drift_rate": 0.02,
+      "spike_frequency": 0.005,
+      "spike_magnitude": 5,
+      "noise_std": 0.2,
+      "threshold": 15,
+      "missing_data_rate": 0.005
+    }
+  ],
+
+  "sensor_dependencies": {
+    "test_pressure": {
+      "depends_on": "test_temperature",
+      "correlation_factor": 0.5
+    }
+  },
+
+  "failure_conditions": [
+    {
+      "name": "Test Failure",
+      "conditions": {
+        "test_temperature": { "above": 115 },
+        "test_pressure": { "above": 14 }
+      },
+      "alert_message": "TEST ALERT: Test failure condition detected"
+    },
+    {
+      "name": "Test Drift",
+      "drift_conditions": {
+        "test_temperature": { "rate_of_change": 0.05, "deviation_factor": 1.5, "window_size": 10 },
+        "test_pressure": { "rate_of_change": 0.02, "deviation_factor": 1.3, "window_size": 10 }
+      },
+      "alert_message": "TEST ALERT: Sensor drift detected!"
+    }
+  ],
+
+  "sampling": {
+    "num_points": 100,
+    "time_interval": 0.1
+  },
+
+  "output": {
+    "format": "database",
+    "file_name": "test_scada_data"
+  },
+
+  "mqtt": {
+    "broker": "localhost",
+    "port": 1883,
+    "topic": "test/scada/sensors"
+  },
+
+  "email": {
+    "sender_email": "test@example.com",
+    "receiver_email": "test@example.com",
+    "smtp_server": "smtp.example.com",
+    "smtp_port": 465,
+    "sender_password": "test_password"
+  }
+}

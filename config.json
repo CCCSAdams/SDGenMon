@@ -1,84 +1,155 @@
 {
+  "_comment": "SCADA Monitoring System Configuration File",
+  
   "sensors": [
     {
+      "_comment": "Temperature sensor configuration",
       "name": "temperature",
-      "base_value": 100,                // Initial normal value
-      "drift_rate": 0.01,               // Gradual drift over time
-      "spike_frequency": 0.01,          // Probability of sudden spikes
-      "spike_magnitude": 15,            // How large a spike can be
-      "noise_std": 0.5,                 // Standard deviation for noise
-      "threshold": 120,                 // Upper limit before an alert
-      "missing_data_rate": 0.01         // Probability of missing/corrupted data
+      "base_value": 100,
+      "_comment_base_value": "Normal operating value (baseline)",
+      "drift_rate": 0.01,
+      "_comment_drift_rate": "How quickly the value drifts over time (units per timestep)",
+      "spike_frequency": 0.01,
+      "_comment_spike_frequency": "Probability (0-1) of a sudden spike occurring",
+      "spike_magnitude": 15,
+      "_comment_spike_magnitude": "Maximum size of spikes when they occur",
+      "noise_std": 0.5,
+      "_comment_noise_std": "Standard deviation of normal noise added to readings",
+      "threshold": 120,
+      "_comment_threshold": "Upper limit before alert is triggered",
+      "missing_data_rate": 0.01,
+      "_comment_missing_data_rate": "Probability (0-1) of missing/corrupted data points"
     },
     {
+      "_comment": "Pressure sensor configuration",
       "name": "pressure",
       "base_value": 10,
+      "_comment_base_value": "Base pressure value (e.g., in PSI)",
       "drift_rate": 0.02,
+      "_comment_drift_rate": "Slightly faster drift than temperature",
       "spike_frequency": 0.005,
+      "_comment_spike_frequency": "Less frequent spikes than temperature",
       "spike_magnitude": 5,
+      "_comment_spike_magnitude": "Smaller spikes than temperature",
       "noise_std": 0.2,
+      "_comment_noise_std": "Less noise than temperature",
       "threshold": 15,
-      "missing_data_rate": 0.005
+      "_comment_threshold": "Critical pressure threshold",
+      "missing_data_rate": 0.005,
+      "_comment_missing_data_rate": "Less likely to have missing data"
     },
     {
+      "_comment": "Flow rate sensor configuration",
       "name": "flow_rate",
       "base_value": 50,
+      "_comment_base_value": "Base flow rate (e.g., in L/min)",
       "drift_rate": 0.05,
+      "_comment_drift_rate": "Faster drift (flow rates can change more quickly)",
       "spike_frequency": 0.01,
+      "_comment_spike_frequency": "Moderate spike frequency",
       "spike_magnitude": 10,
+      "_comment_spike_magnitude": "Moderate spike magnitude",
       "noise_std": 2.0,
+      "_comment_noise_std": "More noise (flow is typically less stable)",
       "threshold": 70,
-      "missing_data_rate": 0.02
+      "_comment_threshold": "Critical flow rate threshold",
+      "missing_data_rate": 0.02,
+      "_comment_missing_data_rate": "More likely to have missing data"
     }
   ],
 
+  "_comment_dependencies": "Define how sensors affect each other. In real systems, sensors often have correlated readings",
   "sensor_dependencies": {
     "pressure": {
-      "depends_on": "flow_rate",        // Pressure correlates with flow rate
-      "correlation_factor": 0.5         // If flow rate increases, pressure follows at this rate
+      "_comment": "Pressure depends on flow rate",
+      "depends_on": "flow_rate",
+      "_comment_depends_on": "The sensor it depends on",
+      "correlation_factor": 0.5,
+      "_comment_correlation_factor": "How strongly it's affected. If flow_rate increases by 10, pressure increases by 10*0.5 = 5"
     }
   },
 
+  "_comment_failure_conditions": "Define conditions that trigger alerts. These can be simple thresholds or more complex combinations",
   "failure_conditions": [
     {
+      "_comment": "Configuration for overheating and high pressure alert",
       "name": "Overheating & High Pressure",
       "conditions": {
         "temperature": { "above": 115 },
-        "pressure": { "above": 14 }
+        "_comment_temperature": "Temperature must be above 115",
+        "pressure": { "above": 14 },
+        "_comment_pressure": "AND pressure must be above 14"
       },
-      "alert_message": "CRITICAL: Overheating and high pressure detected!"
+      "alert_message": "CRITICAL: Overheating and high pressure detected!",
+      "_comment_alert_message": "Message to show/send when this condition is met"
     },
     {
+      "_comment": "Configuration for sensor drift detection",
       "name": "Sensor Drift Detected",
       "drift_conditions": {
-        "temperature": { "rate_of_change": 0.05, "deviation_factor": 1.5, "window_size": 50 },
-        "pressure": { "rate_of_change": 0.02, "deviation_factor": 1.3, "window_size": 50 }
+        "temperature": { 
+          "rate_of_change": 0.05,
+          "_comment_rate_of_change": "Maximum allowed change between readings",
+          "deviation_factor": 1.5,
+          "_comment_deviation_factor": "Maximum allowed deviation from rolling average",
+          "window_size": 50,
+          "_comment_window_size": "Number of readings to use for average calculation"
+        },
+        "pressure": { 
+          "rate_of_change": 0.02,
+          "_comment_rate_of_change": "Pressure changes more slowly than temperature",
+          "deviation_factor": 1.3,
+          "_comment_deviation_factor": "Slightly stricter deviation allowance",
+          "window_size": 50,
+          "_comment_window_size": "Same window size"
+        }
       },
-      "alert_message": "WARNING: Sensor drift detected!"
+      "alert_message": "WARNING: Sensor drift detected!",
+      "_comment_alert_message": "Message when drift is detected"
     }
   ],
 
+  "_comment_sampling": "Controls how the synthetic data is generated in terms of time series",
   "sampling": {
-    "num_points": 1000,                // Number of data points to generate
-    "time_interval": 0.1               // Time interval between points
+    "num_points": 1000,
+    "_comment_num_points": "Total number of data points to generate",
+    "time_interval": 0.1,
+    "_comment_time_interval": "Time between points (in seconds, minutes, etc.)"
   },
 
+  "_comment_output": "Controls how generated data is saved",
   "output": {
-    "format": "csv",                   // Options: "csv", "json", "database"
-    "file_name": "synthetic_scada_data"
+    "format": "database",
+    "_comment_format": "Options: 'csv', 'json', 'database'", 
+    "file_name": "synthetic_scada_data",
+    "_comment_file_name": "Base filename (without extension)"
   },
 
+  "_comment_mqtt": "Settings for the MQTT broker used for real-time communication",
   "mqtt": {
-    "broker": "mqtt.eclipseprojects.io", // MQTT broker (or local IP)
-    "port": 1883,                       // Standard MQTT port
-    "topic": "scada/sensors"            // Topic for sensor data
+    "broker": "mqtt.eclipseprojects.io",
+    "_comment_broker": "MQTT broker address (hostname or IP)",
+    "port": 1883,
+    "_comment_port": "MQTT broker port (default is 1883)",
+    "topic": "scada/sensors",
+    "_comment_topic": "Topic to publish/subscribe to",
+    "username": "",
+    "_comment_username": "MQTT username (if authentication is enabled)",
+    "password": "",
+    "_comment_password": "MQTT password (if authentication is enabled)"
   },
 
+  "_comment_email": "Settings for sending email notifications. For security, set these via environment variables",
   "email": {
-    "sender_email": "your-email@gmail.com",
-    "receiver_email": "alerts@example.com",
+    "sender_email": "",
+    "_comment_sender_email": "Email address to send alerts from",
+    "receiver_email": "",
+    "_comment_receiver_email": "Email address to receive alerts",
     "smtp_server": "smtp.gmail.com",
+    "_comment_smtp_server": "SMTP server address",
     "smtp_port": 465,
-    "sender_password": "yourpassword"  // Use an app password instead of actual credentials
+    "_comment_smtp_port": "SMTP server port (465 for SSL)",
+    "sender_password": "",
+    "_comment_sender_password": "Email password or app password. For Gmail, use an app password"
   }
 }

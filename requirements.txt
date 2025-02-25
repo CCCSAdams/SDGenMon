@@ -1,9 +1,6 @@
-# pip install -r requirements.txt
-
 # Core dependencies
-numpy==1.23.5             # Numerical computations
-pandas==1.5.3             # Data manipulation
-sqlite3                   # Database (built-in with Python)
+numpy==1.23.5
+pandas==1.5.3
 
 # MQTT for real-time sensor communication
 paho-mqtt==1.6.1
@@ -13,8 +10,15 @@ flask==2.2.5
 dash==2.15.0
 dash-bootstrap-components==1.4.1
 
-# Email notifications
-smtplib                   # Email sending (built-in with Python)
-
-# Data Visualization (Optional)
+# Data Visualization
 plotly==5.11.0
+
+# Data generation
+timesynth==0.2.1
+
+# Testing
+pytest==7.4.0
+pytest-cov==4.1.0
+
+# Environment variable management
+python-dotenv==1.0.0

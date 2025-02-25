@@ -9,123 +9,214 @@
 ✅ **Anomaly Detection** – Detects spikes, threshold violations, and sensor drift.  
 ✅ **Automated Alerts** – Logs alerts into a database and sends email notifications.  
 ✅ **Web Dashboard** – Displays live sensor data and alerts via a Flask-Dash web interface.  
+✅ **Docker Support** – Easy deployment with Docker and docker-compose.
+✅ **Comprehensive Testing** – Unit tests with coverage reporting.
 
 ---
 
 ## 1️⃣ Installation
 
-### Step 1: Clone the Repository
+### Option A: Standard Installation
+
+#### Step 1: Clone the Repository
 ```sh
-git clone https://github.com/your-username/scada-ai-monitor.git
-cd scada-ai-monitor
+git clone https://github.com/CCCSAdams/SDGenMon.git
+cd SDGenMon
 ```
 
-### Step 2: Install Dependencies
+#### Step 2: Install Dependencies
 ```sh
 pip install -r requirements.txt
 ```
 
-### Step 3: Configure the System
-Modify **`config.json`** to set up:  
-- **Sensors & their behavior** (drift, noise, thresholds)  
-- **Failure conditions** (e.g., overheating, pressure spikes)  
-- **MQTT settings** (for real-time streaming)  
-- **Email notifications** (SMTP settings)  
+#### Step 3: Configure the System
+```sh
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env with your settings
+nano .env
+```
+
+### Option B: Docker Installation
+
+#### Step 1: Clone the Repository
+```sh
+git clone https://github.com/CCCSAdams/SDGenMon.git
+cd SDGenMon
+```
+
+#### Step 2: Configure the System
+```sh
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env with your settings
+nano .env
+
+# Create directories for MQTT broker
+mkdir -p mosquitto/config mosquitto/data mosquitto/log
+```
+
+#### Step 3: Set up MQTT Configuration
+```sh
+# Copy example MQTT configuration
+cp mosquitto/config/mosquitto.conf.example mosquitto/config/mosquitto.conf
+
+# Edit if needed
+nano mosquitto/config/mosquitto.conf
+```
 
 ---
 
 ## 2️⃣ Usage
 
-### 1. Generate Synthetic SCADA Data
-```sh
-python scada_data_generator.py
-```
-📌 *This script generates realistic sensor data based on `config.json` and saves it in CSV, JSON, or a database.*  
+### Option A: Standard Usage
 
-### 2. Start Real-Time SCADA Monitoring
+#### Run the Complete System
 ```sh
-python scada_monitor.py
+python run.py --all
 ```
-📌 *This script:*  
-- **Listens for live sensor data via MQTT**  
-- **Checks for anomalies (spikes, drift, threshold violations)**  
-- **Logs alerts into an SQLite database**  
-- **Sends email notifications for critical failures**  
 
-### 3. Launch the Web Dashboard
+#### Run Individual Components
 ```sh
-python scada_dashboard.py
+# Generate synthetic data
+python run.py --generate-data
+
+# Simulate sensor publishing
+python run.py --simulate-sensors
+
+# Run SCADA monitor
+python run.py --monitor
+
+# Run dashboard
+python run.py --dashboard
 ```
+
+### Option B: Docker Usage
+
+#### Start the System
+```sh
+docker-compose up -d
+```
+
+#### View Logs
+```sh
+docker-compose logs -f
+```
+
+#### Stop the System
+```sh
+docker-compose down
+```
+
+### Access the Dashboard
 📌 *Visit:* **[`http://localhost:8050`](http://localhost:8050)**  
 - **View real-time sensor readings**  
 - **Monitor live alerts**  
-- **Analyze past anomalies**  
+- **Analyze sensor trends**  
 
 ---
 
 ## 3️⃣ Configuration
-Modify `config.json` to adjust system behavior.
+Modify `config.json` or use environment variables to adjust system behavior.
 
-```json
-{
-  "sensors": [
-    {
-      "name": "temperature",
-      "base_value": 100,
-      "drift_rate": 0.01,
-      "spike_frequency": 0.01,
-      "spike_magnitude": 15,
-      "noise_std": 0.5,
-      "threshold": 120,
-      "missing_data_rate": 0.01
-    }
-  ],
-  "mqtt": {
-    "broker": "mqtt.eclipseprojects.io",
-    "port": 1883,
-    "topic": "scada/sensors"
-  },
-  "email": {
-    "sender_email": "your-email@gmail.com",
-    "receiver_email": "alerts@example.com",
-    "smtp_server": "smtp.gmail.com",
-    "smtp_port": 465,
-    "sender_password": "yourpassword"
-  }
-}
-```
+### Environment Variables
+
+Important environment variables that can be set in `.env`:
+
+- `MQTT_BROKER` - MQTT broker hostname/IP
+- `MQTT_PORT` - MQTT broker port
+- `MQTT_USERNAME` - MQTT authentication username (if required)
+- `MQTT_PASSWORD` - MQTT authentication password (if required)
+- `SMTP_EMAIL` - Email address for sending alerts
+- `SMTP_PASSWORD` - Email password or app password
+- `SMTP_SERVER` - SMTP server address
+- `SMTP_PORT` - SMTP server port
 
 ---
 
 ## 4️⃣ Project Structure
 ```
-/scada-ai-monitor
+/SDGenMon
   ├── config.json                  # Configuration for sensors, alerts, MQTT, email
-  ├── requirements.txt              # Dependencies
-  ├── LICENSE                       # Open-source license (Apache 2.0)
-  ├── README.md                     # Documentation
-  ├── scada_data_generator.py       # Generates synthetic sensor data
-  ├── scada_monitor.py              # Monitors real-time SCADA data & detects anomalies
-  ├── scada_dashboard.py            # Web dashboard for live monitoring
-  ├── /output_data                  # Folder for generated CSV/JSON files
-  ├── /models                       # (Optional) AI models for anomaly detection
+  ├── .env.example                 # Example environment variables
+  ├── requirements.txt             # Dependencies
+  ├── run.py                       # Script to run the full system
+  ├── README.md                    # Documentation
+  ├── LICENSE                      # Open-source license (Apache 2.0)
+  ├── Dockerfile                   # Docker configuration
+  ├── docker-compose.yml           # Docker Compose configuration
+  │
+  ├── utils.py                     # Shared utility functions
+  ├── scada_data_generator.py      # Generates synthetic sensor data
+  ├── scada_monitor.py             # Monitors real-time SCADA data & detects anomalies
+  ├── scada_dashboard.py           # Web dashboard for live monitoring
+  ├── sim_scada_sensor_publish.py  # Simulates sensor data publishing
+  │
+  ├── test_*.py                    # Unit tests
+  ├── run_tests.py                 # Script to run all tests
+  │
+  ├── /mosquitto                   # MQTT broker configuration
+  │   ├── /config                  # Configuration files
+  │   ├── /data                    # Persistence data
+  │   └── /log                     # Log files
+  │
+  └── /output_data                 # Folder for generated data files
 ```
 
 ---
 
-## 5️⃣ Roadmap
+## 5️⃣ Testing
+
+### Run All Tests
+```sh
+python run_tests.py
+```
+
+### Run Individual Test Files
+```sh
+pytest test_utils.py -v
+pytest test_scada_monitor.py -v
+```
+
+### Generate Coverage Report
+```sh
+pytest --cov=. --cov-report=term-missing
+```
+
+---
+
+## 6️⃣ Security Considerations
+
+For production use, consider these security enhancements:
+
+1. **MQTT Authentication**: Enable username/password authentication in `mosquitto.conf` and configure credentials in `.env`.
+
+2. **Secure Storage**: Use a secure vault solution (like HashiCorp Vault) instead of storing credentials in `.env`.
+
+3. **TLS/SSL**: Configure MQTT and dashboard with TLS certificates for encrypted communications.
+
+4. **Access Control**: Implement proper access controls for the dashboard.
+
+5. **Container Security**: Follow Docker security best practices if deploying with containers.
+
+---
+
+## 7️⃣ Roadmap
 🛠 **Planned Features:**  
 - ✅ **Real-time anomaly detection (DONE)**  
 - ✅ **Email alerts for failures (DONE)**  
-- 📊 **Live sensor trend graphs in dashboard**  
+- ✅ **Live sensor trend graphs in dashboard (DONE)**  
 - 📩 **Slack/SMS notifications for critical failures**  
 - 📡 **Integration with external SCADA APIs**  
+- 🔐 **Enhanced security with TLS/SSL support**
 
 📌 Want a feature? Open an [Issue](https://github.com/CCCSAdams/SDGenMon/issues).  
 
 ---
 
-## 6️⃣ Contributing
+## 8️⃣ Contributing
 👥 **Contributions are welcome!**  
 
 1. **Fork the repo**  
@@ -145,13 +236,13 @@ Modify `config.json` to adjust system behavior.
 
 ---
 
-## 7️⃣ License
+## 9️⃣ License
 📜 This project is licensed under the **Apache License 2.0**.  
 See [LICENSE](LICENSE) for details.
 
 ---
 
-## 8️⃣ Contact
+## 🔟 Contact
 📧 **Email:** sadams@ccandc.ai  
 🌍 **Website:** [CC&C](https://ccandc.ai)  
 
